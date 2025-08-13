@@ -164,8 +164,6 @@ class ApiStack(Stack):
         self.api_id = self.api.api_id
 
         # Create SSM parameter for API URL
-        from aws_cdk import aws_ssm as ssm
-
         ssm.StringParameter(
             self,
             "ApiUrlParameter",
