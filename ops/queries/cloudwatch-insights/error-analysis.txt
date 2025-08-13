@@ -1,0 +1,63 @@
+# Error Analysis Queries for Ingestion Pipeline
+
+## 1. General Error Overview
+fields @timestamp, @message, requestId, errorType, idempotencyKey
+| filter @message like /ERROR/
+| sort @timestamp desc
+| limit 100
+
+## 2. Error Distribution by Type
+fields @timestamp, errorType
+| filter @message like /ERROR/
+| stats count() by errorType
+| sort count desc
+
+## 3. Errors by Function
+fields @timestamp, @logStream, @message, errorType
+| filter @message like /ERROR/
+| parse @logStream /\/aws\/lambda\/(?<functionName>[^\/]+)/
+| stats count() by functionName, errorType
+| sort count desc
+
+## 4. Recent Critical Errors (Last Hour)
+fields @timestamp, @message, requestId, errorType, idempotencyKey
+| filter @timestamp > @timestamp - 1h
+| filter @message like /ERROR/
+| filter errorType in ["SchemaValidationError", "TimeoutError", "ProcessingError"]
+| sort @timestamp desc
+
+## 5. Error Correlation with Request IDs
+fields @timestamp, @message, requestId, errorType
+| filter @message like /ERROR/
+| filter ispresent(requestId)
+| sort @timestamp desc
+| limit 50
+
+## 6. Validation Error Details
+fields @timestamp, @message, requestId, error, payload
+| filter @message like /Validation failed/
+| sort @timestamp desc
+| limit 50
+
+## 7. DynamoDB Related Errors
+fields @timestamp, @message, requestId, errorType
+| filter @message like /ERROR/
+| filter @message like /dynamodb/ or @message like /DynamoDB/ or @message like /ConditionalCheckFailed/
+| sort @timestamp desc
+
+## 8. SQS Related Errors
+fields @timestamp, @message, requestId, errorType
+| filter @message like /ERROR/
+| filter @message like /sqs/ or @message like /SQS/ or @message like /queue/
+| sort @timestamp desc
+
+## 9. Timeout Errors Analysis
+fields @timestamp, @message, requestId, durationMs
+| filter @message like /timeout/ or @message like /Timeout/
+| sort @timestamp desc
+
+## 10. Error Rate Over Time (5-minute buckets)
+fields @timestamp, @message
+| filter @message like /ERROR/
+| stats count() by bin(5m)
+| sort @timestamp desc
