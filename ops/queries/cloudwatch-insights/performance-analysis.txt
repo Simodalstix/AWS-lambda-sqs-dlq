@@ -1,0 +1,74 @@
+# Performance Analysis Queries for Ingestion Pipeline
+
+## 1. Processing Duration Analysis
+fields @timestamp, @message, requestId, durationMs, idempotencyKey
+| filter @message like /processed/ and ispresent(durationMs)
+| stats avg(durationMs), max(durationMs), min(durationMs), count() by bin(5m)
+| sort @timestamp desc
+
+## 2. High Latency Requests
+fields @timestamp, @message, requestId, durationMs, idempotencyKey
+| filter @message like /processed/ and ispresent(durationMs)
+| filter durationMs > 1000
+| sort durationMs desc
+| limit 50
+
+## 3. Processing Rate Over Time
+fields @timestamp, @message, processed
+| filter @message like /processed/
+| stats count() as processedMessages by bin(1m)
+| sort @timestamp desc
+
+## 4. Idempotency Hit Rate
+fields @timestamp, @message, idempotent
+| filter @message like /Idempotent message/ or @message like /New message/
+| stats 
+    count(if(@message like /Idempotent message/, 1, null)) as idempotentHits,
+    count(if(@message like /New message/, 1, null)) as newMessages,
+    count() as totalMessages
+    by bin(5m)
+| sort @timestamp desc
+
+## 5. Batch Processing Efficiency
+fields @timestamp, @message, totalRecords, failedRecords, successfulRecords
+| filter @message like /Worker processing completed/
+| stats 
+    avg(totalRecords) as avgBatchSize,
+    avg(successfulRecords) as avgSuccessful,
+    avg(failedRecords) as avgFailed,
+    count() as batchCount
+    by bin(5m)
+| sort @timestamp desc
+
+## 6. Error Rate Analysis
+fields @timestamp, @message, errorType
+| filter @message like /ERROR/
+| stats count() as errorCount by errorType, bin(5m)
+| sort @timestamp desc
+
+## 7. Function Duration Comparison
+fields @timestamp, @logStream, @message, durationMs
+| filter @message like /duration/ or @message like /Duration/
+| parse @logStream /\/aws\/lambda\/(?<functionName>[^\/]+)/
+| stats avg(durationMs), max(durationMs) by functionName, bin(5m)
+| sort @timestamp desc
+
+## 8. Memory Usage Analysis
+fields @timestamp, @logStream, @message, memoryUsed, memorySize
+| filter @message like /memory/
+| parse @logStream /\/aws\/lambda\/(?<functionName>[^\/]+)/
+| stats avg(memoryUsed), max(memoryUsed) by functionName, bin(5m)
+| sort @timestamp desc
+
+## 9. Throttling Events
+fields @timestamp, @logStream, @message
+| filter @message like /Throttled/ or @message like /throttle/ or @message like /Rate Exceeded/
+| parse @logStream /\/aws\/lambda\/(?<functionName>[^\/]+)/
+| stats count() by functionName, bin(5m)
+| sort @timestamp desc
+
+## 10. Iterator Age
+fields @timestamp, @message
+| filter @logStream like /worker/ and @message like /IteratorAge/
+| stats avg(IteratorAge) as avgIteratorAge, max(IteratorAge) as maxIteratorAge by bin(5m)
+| sort @timestamp desc

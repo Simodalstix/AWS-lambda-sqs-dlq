@@ -12,7 +12,7 @@ from aws_cdk import (
     RemovalPolicy,
 )
 from constructs import Construct
-from stacks.functions_stack import FunctionsStack
+from .functions_stack import FunctionsStack
 
 
 class ApiStack(Stack):
@@ -151,12 +151,14 @@ class ApiStack(Stack):
         )
 
         # Grant API Gateway permission to invoke Lambda functions
+        from aws_cdk import aws_iam as iam
+        
         functions_stack.ingest_function.function.grant_invoke(
-            apigwv2.ServicePrincipal("apigateway.amazonaws.com")
+            iam.ServicePrincipal("apigateway.amazonaws.com")
         )
 
         functions_stack.redrive_function.function.grant_invoke(
-            apigwv2.ServicePrincipal("apigateway.amazonaws.com")
+            iam.ServicePrincipal("apigateway.amazonaws.com")
         )
 
         # Store API URL for outputs

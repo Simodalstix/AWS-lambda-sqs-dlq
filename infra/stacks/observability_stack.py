@@ -4,11 +4,11 @@ Observability Stack for the ingestion pipeline
 
 from aws_cdk import Stack, aws_cloudwatch as cloudwatch, aws_logs as logs, RemovalPolicy
 from constructs import Construct
-from constructs.dashboard import IngestionDashboard
-from constructs.alarms import IngestionAlarms
-from stacks.queue_stack import QueueStack
-from stacks.functions_stack import FunctionsStack
-from stacks.api_stack import ApiStack
+from ..constructs.dashboard import IngestionDashboard
+from ..constructs.alarms import IngestionAlarms
+from .queue_stack import QueueStack
+from .functions_stack import FunctionsStack
+from .api_stack import ApiStack
 
 
 class ObservabilityStack(Stack):

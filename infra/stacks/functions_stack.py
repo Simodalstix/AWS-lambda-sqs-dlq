@@ -10,8 +10,8 @@ from aws_cdk import (
     aws_iam as iam,
 )
 from constructs import Construct
-from constructs.lambda_fn import ObservableLambda
-from stacks.queue_stack import QueueStack
+from ..constructs.lambda_fn import ObservableLambda
+from .queue_stack import QueueStack
 
 
 class FunctionsStack(Stack):

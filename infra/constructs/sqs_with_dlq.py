@@ -44,7 +44,7 @@ class SqsWithDlq(Construct):
             encryption=encryption,
             encryption_master_key=encryption_master_key,
             # DLQ should have longer retention for investigation
-            message_retention_period=Duration.days(14),
+            retention_period=Duration.days(14),
             # DLQ doesn't need its own DLQ
             visibility_timeout=Duration.minutes(5),
         )
@@ -57,7 +57,7 @@ class SqsWithDlq(Construct):
             encryption=encryption,
             encryption_master_key=encryption_master_key,
             visibility_timeout=visibility_timeout,
-            message_retention_period=Duration.days(4),
+            retention_period=Duration.days(4),
             dead_letter_queue=sqs.DeadLetterQueue(
                 max_receive_count=max_receive_count, queue=self.dlq
             ),

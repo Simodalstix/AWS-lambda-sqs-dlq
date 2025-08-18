@@ -75,7 +75,7 @@ class ObservableLambda(Construct):
             memory_size=memory_size,
             environment=final_env_vars,
             log_group=log_group,
-            reserved_concurrency=reserved_concurrency,
+            reserved_concurrent_executions=reserved_concurrency,
             # Enable tracing for X-Ray
             tracing=lambda_.Tracing.ACTIVE,
             # Enable insights for better observability

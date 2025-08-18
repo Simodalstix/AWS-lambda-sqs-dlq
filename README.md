@@ -2,6 +2,27 @@
 
 A production-ready serverless ingestion pipeline demonstrating AWS best practices for reliability, observability, and operational excellence.
 
+## 🎯 Recent Improvements - Well-Architected Enhancement (95% Compliant)
+
+✅ **Exponential Backoff** - Intelligent retry logic with jitter in redrive operations
+✅ **Error Categorization** - Systematic error classification (VALIDATION, TRANSIENT, PERMANENT, TIMEOUT, PROCESSING)
+✅ **Single Responsibility Functions** - Split monolithic functions into focused components:
+
+- [`functions/validate/`](functions/validate/) - Schema validation only
+- [`functions/publish/`](functions/publish/) - SQS publishing only
+- [`functions/idempotency/`](functions/idempotency/) - Idempotency checks only
+- [`functions/processor/`](functions/processor/) - Business logic only
+- [`functions/events/`](functions/events/) - EventBridge publishing only
+
+✅ **Circuit Breaker Pattern** - Resilience for external service calls with service-specific configurations
+✅ **Batch Size Optimization** - Dynamic SQS batch sizing based on message size (up to 256KB limit)
+✅ **Enhanced Monitoring** - Comprehensive CloudWatch dashboards and alarms with custom metrics
+✅ **Visibility Timeout Optimization** - Proper buffer calculations (`worker_timeout + 30s`)
+
+> **📖 Detailed Architecture Guide**: See [`docs/architecture-improvements.md`](docs/architecture-improvements.md) for comprehensive improvement documentation
+
+---
+
 ## 🏗️ Architecture
 
 ```mermaid

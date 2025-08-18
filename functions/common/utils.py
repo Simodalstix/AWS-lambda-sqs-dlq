@@ -1,5 +1,6 @@
 """
 Common utilities for Lambda functions in the ingestion pipeline
+Enhanced with batch size optimization and circuit breaker patterns
 """
 
 import json
@@ -236,3 +237,157 @@ def log_structured(
     log_message = json.dumps(log_data)
 
     getattr(logger, level.lower())(log_message)
+
+
+def calculate_optimal_batch_size(
+    avg_message_size_bytes: int, max_batch_size: int = 10
+) -> int:
+    """
+    Calculate optimal batch size based on message size
+    SQS has a 256KB limit per batch
+    """
+    max_batch_size_bytes = 256 * 1024  # 256KB
+
+    if avg_message_size_bytes <= 0:
+        return max_batch_size
+
+    # Calculate how many messages can fit in the batch size limit
+    calculated_batch_size = max_batch_size_bytes // avg_message_size_bytes
+
+    # Ensure we don't exceed the maximum batch size (10 for SQS)
+    return min(max(calculated_batch_size, 1), max_batch_size)
+
+
+def validate_batch_size(batch_size: int, message_sizes: list) -> bool:
+    """
+    Validate that a batch of messages doesn't exceed SQS limits
+    """
+    if batch_size > 10:
+        return False
+
+    total_size = sum(message_sizes)
+    max_batch_size_bytes = 256 * 1024  # 256KB
+
+    return total_size <= max_batch_size_bytes
+
+
+class CircuitBreaker:
+    """
+    Circuit breaker pattern implementation for resilience
+    """
+
+    def __init__(
+        self,
+        failure_threshold: int = 5,
+        recovery_timeout: int = 60,
+        expected_exception: Exception = Exception,
+    ):
+        self.failure_threshold = failure_threshold
+        self.recovery_timeout = recovery_timeout
+        self.expected_exception = expected_exception
+        self.failure_count = 0
+        self.last_failure_time = None
+        self.state = "CLOSED"  # CLOSED, OPEN, HALF_OPEN
+
+    def call(self, func, *args, **kwargs):
+        """
+        Execute function with circuit breaker protection
+        """
+        if self.state == "OPEN":
+            if self._should_attempt_reset():
+                self.state = "HALF_OPEN"
+            else:
+                raise Exception("Circuit breaker is OPEN")
+
+        try:
+            result = func(*args, **kwargs)
+            self._on_success()
+            return result
+        except self.expected_exception as e:
+            self._on_failure()
+            raise e
+
+    def _should_attempt_reset(self) -> bool:
+        """Check if enough time has passed to attempt reset"""
+        if self.last_failure_time is None:
+            return True
+        return time.time() - self.last_failure_time >= self.recovery_timeout
+
+    def _on_success(self):
+        """Handle successful call"""
+        self.failure_count = 0
+        self.state = "CLOSED"
+
+    def _on_failure(self):
+        """Handle failed call"""
+        self.failure_count += 1
+        self.last_failure_time = time.time()
+
+        if self.failure_count >= self.failure_threshold:
+            self.state = "OPEN"
+
+
+def create_circuit_breaker_for_service(service_name: str) -> CircuitBreaker:
+    """
+    Create a circuit breaker configured for specific services
+    """
+    config = {
+        "dynamodb": {"failure_threshold": 3, "recovery_timeout": 30},
+        "sqs": {"failure_threshold": 5, "recovery_timeout": 60},
+        "eventbridge": {"failure_threshold": 3, "recovery_timeout": 45},
+        "default": {"failure_threshold": 5, "recovery_timeout": 60},
+    }
+
+    service_config = config.get(service_name, config["default"])
+
+    return CircuitBreaker(
+        failure_threshold=service_config["failure_threshold"],
+        recovery_timeout=service_config["recovery_timeout"],
+        expected_exception=ClientError,
+    )
+
+
+def retry_with_exponential_backoff(
+    func, max_retries: int = 3, base_delay: float = 1.0, max_delay: float = 60.0
+):
+    """
+    Retry function with exponential backoff
+    """
+    import random
+
+    for attempt in range(max_retries + 1):
+        try:
+            return func()
+        except Exception as e:
+            if attempt == max_retries:
+                raise e
+
+            # Calculate delay with jitter
+            delay = min(base_delay * (2**attempt), max_delay)
+            jitter = random.uniform(0, delay * 0.1)  # 10% jitter
+            total_delay = delay + jitter
+
+            time.sleep(total_delay)
+
+    raise Exception("Max retries exceeded")
+
+
+def get_message_size_bytes(message_body: str, message_attributes: dict = None) -> int:
+    """
+    Calculate the size of an SQS message in bytes
+    """
+    body_size = len(message_body.encode("utf-8"))
+
+    attributes_size = 0
+    if message_attributes:
+        for key, value in message_attributes.items():
+            attributes_size += len(key.encode("utf-8"))
+            if isinstance(value, dict):
+                if "StringValue" in value:
+                    attributes_size += len(value["StringValue"].encode("utf-8"))
+                if "BinaryValue" in value:
+                    attributes_size += len(value["BinaryValue"])
+                if "DataType" in value:
+                    attributes_size += len(value["DataType"].encode("utf-8"))
+
+    return body_size + attributes_size

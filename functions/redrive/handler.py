@@ -1,5 +1,6 @@
 """
 Redrive Lambda function - manages DLQ message redrive with safety controls
+Enhanced with exponential backoff and error categorization
 """
 
 import json
@@ -33,6 +34,16 @@ sqs = boto3.client("sqs")
 QUEUE_URL = os.environ["QUEUE_URL"]
 DLQ_URL = os.environ["DLQ_URL"]
 ENV_NAME = os.environ["ENV_NAME"]
+
+# Error categorization for better DLQ analysis
+ERROR_TYPES = {
+    "VALIDATION": "Schema or business rule violation",
+    "TRANSIENT": "Temporary failure, retry possible",
+    "PERMANENT": "Permanent failure, manual intervention needed",
+    "TIMEOUT": "Processing timeout, increase resources",
+    "PROCESSING": "Business logic processing error",
+    "UNKNOWN": "Unclassified error type",
+}
 
 
 def lambda_handler(event, context):
@@ -135,7 +146,13 @@ def handle_preview(query_params: dict, request_id: str):
             for message in batch_messages:
                 # Check filters
                 if should_include_message(message, error_type_filter, min_age_seconds):
-                    messages.append(format_message_preview(message))
+                    preview = format_message_preview(message)
+                    # Add error categorization to preview
+                    preview["errorCategory"] = categorize_error_type(message)
+                    preview["errorDescription"] = ERROR_TYPES.get(
+                        preview["errorCategory"], "Unknown error type"
+                    )
+                    messages.append(preview)
                     received_count += 1
 
                 # Return message to queue (make it visible again)
@@ -260,13 +277,15 @@ def handle_start(body: dict, request_id: str):
                     if should_include_message(
                         message, error_type_filter, min_age_seconds
                     ):
-                        # Add jitter delay
-                        if per_message_delay_jitter > 0:
-                            delay_seconds = random.randint(
-                                0, per_message_delay_jitter * 60
+                        # Calculate exponential backoff with jitter
+                        receive_count = int(
+                            message.get("Attributes", {}).get(
+                                "ApproximateReceiveCount", 1
                             )
-                        else:
-                            delay_seconds = 0
+                        )
+                        delay_seconds = calculate_exponential_backoff(
+                            receive_count, per_message_delay_jitter
+                        )
 
                         # Send message back to main queue
                         sqs.send_message(
@@ -283,6 +302,9 @@ def handle_start(body: dict, request_id: str):
 
                         redriven_count += 1
 
+                        # Categorize error for logging
+                        error_category = categorize_error_type(message)
+
                         log_structured(
                             logger,
                             "INFO",
@@ -290,6 +312,8 @@ def handle_start(body: dict, request_id: str):
                             request_id,
                             messageId=message["MessageId"],
                             delaySeconds=delay_seconds,
+                            errorCategory=error_category,
+                            receiveCount=receive_count,
                         )
                     else:
                         # Return message to DLQ (skip)
@@ -433,3 +457,86 @@ def format_message_preview(message: dict) -> dict:
             for key, attr in message_attributes.items()
         },
     }
+
+
+def calculate_exponential_backoff(attempt: int, base_jitter_minutes: int = 5) -> int:
+    """
+    Calculate exponential backoff delay with jitter
+
+    Args:
+        attempt: The attempt number (receive count)
+        base_jitter_minutes: Base jitter in minutes
+
+    Returns:
+        Delay in seconds (capped at 900 seconds / 15 minutes)
+    """
+    # Base delay: 2^attempt seconds, starting from 1 second
+    base_delay = min(2 ** (attempt - 1), 300)  # Cap base at 5 minutes
+
+    # Add jitter: random value between 0 and base_jitter_minutes * 60
+    jitter = (
+        random.randint(0, base_jitter_minutes * 60) if base_jitter_minutes > 0 else 0
+    )
+
+    # Total delay with jitter
+    total_delay = base_delay + jitter
+
+    # Cap at 15 minutes (SQS DelaySeconds maximum)
+    return min(total_delay, 900)
+
+
+def categorize_error_type(message: dict) -> str:
+    """
+    Categorize error type based on message attributes and content
+
+    Args:
+        message: SQS message dictionary
+
+    Returns:
+        Error category string
+    """
+    message_attributes = message.get("MessageAttributes", {})
+
+    # Check for explicit error type in message attributes
+    error_type_candidate = message_attributes.get("errorTypeCandidate", {}).get(
+        "StringValue", ""
+    )
+
+    if error_type_candidate:
+        # Map known error types
+        error_type_upper = error_type_candidate.upper()
+        if "VALIDATION" in error_type_upper or "SCHEMA" in error_type_upper:
+            return "VALIDATION"
+        elif "TIMEOUT" in error_type_upper:
+            return "TIMEOUT"
+        elif "TRANSIENT" in error_type_upper or "TEMPORARY" in error_type_upper:
+            return "TRANSIENT"
+        elif "PROCESSING" in error_type_upper or "BUSINESS" in error_type_upper:
+            return "PROCESSING"
+        elif "PERMANENT" in error_type_upper or "FATAL" in error_type_upper:
+            return "PERMANENT"
+
+    # Analyze message body for error patterns
+    try:
+        body = json.loads(message["Body"])
+
+        # Check for validation-related errors in the payload
+        if any(key in str(body).lower() for key in ["validation", "schema", "invalid"]):
+            return "VALIDATION"
+
+        # Check for timeout indicators
+        if any(key in str(body).lower() for key in ["timeout", "slow", "deadline"]):
+            return "TIMEOUT"
+
+    except (json.JSONDecodeError, TypeError):
+        pass
+
+    # Check receive count to infer error type
+    receive_count = int(message.get("Attributes", {}).get("ApproximateReceiveCount", 1))
+
+    if receive_count >= 5:
+        return "PERMANENT"  # Likely permanent after many retries
+    elif receive_count >= 2:
+        return "TRANSIENT"  # Likely transient if retrying
+
+    return "UNKNOWN"
