@@ -4,6 +4,10 @@ Event-Driven Ingestion + DLQ Reliability Lab
 Main CDK application entry point
 """
 
+import sys
+import os
+sys.path.insert(0, os.path.dirname(__file__))
+
 import aws_cdk as cdk
 from stacks.api_stack import ApiStack
 from stacks.queue_stack import QueueStack

@@ -34,7 +34,7 @@ class IngestionEventBus(Construct):
 
         # Create custom event bus
         self.event_bus = events.EventBus(
-            self, "IngestionEventBus", event_bus_name=bus_name, kms_key=encryption_key
+            self, "IngestionEventBus", event_bus_name=bus_name
         )
 
         # Create SNS topic for notifications
@@ -116,12 +116,14 @@ class IngestionEventBus(Construct):
         self.bus_arn = self.event_bus.event_bus_arn
         self.topic_arn = self.notification_topic.topic_arn
 
-    def grant_put_events(self, grantee) -> iam.Grant:
+    def grant_put_events(self, grantee):
         """Grant permissions to put events to the custom bus"""
-        return iam.Grant.add_to_principal(
-            grantee=grantee,
-            actions=["events:PutEvents"],
-            resources=[self.event_bus.event_bus_arn],
+        grantee.add_to_role_policy(
+            iam.PolicyStatement(
+                effect=iam.Effect.ALLOW,
+                actions=["events:PutEvents"],
+                resources=[self.event_bus.event_bus_arn],
+            )
         )
 
     def add_rule(

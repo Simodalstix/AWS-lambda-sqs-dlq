@@ -10,9 +10,9 @@ from aws_cdk import (
     RemovalPolicy,
 )
 from constructs import Construct
-from ..constructs.kms_key import IngestionKmsKey
-from ..constructs.sqs_with_dlq import SqsWithDlq
-from ..constructs.event_bus import IngestionEventBus
+from cdk_constructs.kms_key import IngestionKmsKey
+from cdk_constructs.sqs_with_dlq import SqsWithDlq
+from cdk_constructs.event_bus import IngestionEventBus
 
 
 class QueueStack(Stack):
@@ -27,11 +27,11 @@ class QueueStack(Stack):
         env_name = self.node.try_get_context("envName") or "dev"
         max_receive_count = self.node.try_get_context("maxReceiveCount") or 5
         worker_timeout_seconds = self.node.try_get_context("workerTimeoutSeconds") or 30
-        
+
         # Calculate visibility timeout: Lambda timeout + buffer (AWS best practice)
         queue_visibility_seconds = max(
             worker_timeout_seconds + 30,  # 30s buffer for processing overhead
-            self.node.try_get_context("queueVisibilitySeconds") or 180
+            self.node.try_get_context("queueVisibilitySeconds") or 180,
         )
         use_kms_cmk = self.node.try_get_context("useKmsCmk") or False
         ttl_days = self.node.try_get_context("ttlDays") or 7

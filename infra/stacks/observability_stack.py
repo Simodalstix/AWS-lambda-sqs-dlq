@@ -4,8 +4,8 @@ Observability Stack for the ingestion pipeline
 
 from aws_cdk import Stack, aws_cloudwatch as cloudwatch, aws_logs as logs, RemovalPolicy
 from constructs import Construct
-from ..constructs.dashboard import IngestionDashboard
-from ..constructs.alarms import IngestionAlarms
+from cdk_constructs.dashboard import IngestionDashboard
+from cdk_constructs.alarms import IngestionAlarms
 from .queue_stack import QueueStack
 from .functions_stack import FunctionsStack
 from .api_stack import ApiStack
@@ -113,9 +113,9 @@ fields @timestamp, @message, requestId, errorType, idempotencyKey
 | limit 100
             """.strip(),
             log_groups=[
-                functions_stack.ingest_function.log_group,
-                functions_stack.worker_function.log_group,
-                functions_stack.redrive_function.log_group,
+                self.functions_stack.ingest_function.log_group,
+                self.functions_stack.worker_function.log_group,
+                self.functions_stack.redrive_function.log_group,
             ],
         )
 

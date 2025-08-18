@@ -1,5 +1,5 @@
-# AWS CDK v2 - Known working versions for Python 3.11/3.12
-aws-cdk-lib==2.100.0
+# AWS CDK v2 - Latest stable with Python 3.11
+aws-cdk-lib==2.150.0
 constructs==10.3.0
 
 # Additional dependencies for testing and development

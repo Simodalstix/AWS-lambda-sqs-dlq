@@ -10,9 +10,9 @@ from aws_cdk import (
     RemovalPolicy,
 )
 from constructs import Construct
-from constructs.kms_key import IngestionKmsKey
-from constructs.sqs_with_dlq import SqsWithDlq
-from constructs.event_bus import IngestionEventBus
+from .kms_key import IngestionKmsKey
+from .sqs_with_dlq import SqsWithDlq
+from .event_bus import IngestionEventBus
 
 
 class QueueStack(Stack):
