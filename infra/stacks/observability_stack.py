@@ -61,8 +61,9 @@ class ObservabilityStack(Stack):
         # Create composite alarms for system health
         self._create_composite_alarms()
 
-        # Create log insights queries
-        self._create_log_insights_queries()
+        # Log insights queries disabled - CDK v2.150.0 API change
+        # Can be added post-deployment via AWS Console
+        # self._create_log_insights_queries()
 
         # Store references for outputs
         self.dashboard_url = f"https://console.aws.amazon.com/cloudwatch/home?region={self.region}#dashboards:name={self.dashboard.dashboard.dashboard_name}"
@@ -106,12 +107,7 @@ class ObservabilityStack(Stack):
             self,
             "ErrorAnalysisQuery",
             query_definition_name="IngestionLab-ErrorAnalysis",
-            query_string="""
-fields @timestamp, @message, requestId, errorType, idempotencyKey
-| filter @message like /ERROR/
-| sort @timestamp desc
-| limit 100
-            """.strip(),
+            query_string="fields @timestamp, @message, requestId, errorType, idempotencyKey | filter @message like /ERROR/ | sort @timestamp desc | limit 100",
             log_groups=[
                 self.functions_stack.ingest_function.log_group,
                 self.functions_stack.worker_function.log_group,
@@ -130,7 +126,7 @@ fields @timestamp, @message, requestId, durationMs, idempotencyKey
 | stats avg(durationMs), max(durationMs), min(durationMs), count() by bin(5m)
 | sort @timestamp desc
             """.strip(),
-            log_groups=[functions_stack.worker_function.log_group],
+            log_groups=[self.functions_stack.worker_function.log_group],
         )
 
         # Query for idempotency analysis
@@ -145,7 +141,7 @@ fields @timestamp, @message, requestId, idempotencyKey, idempotent
 | sort count desc
 | limit 50
             """.strip(),
-            log_groups=[functions_stack.worker_function.log_group],
+            log_groups=[self.functions_stack.worker_function.log_group],
         )
 
         # Query for failure mode analysis
@@ -160,8 +156,8 @@ fields @timestamp, @message, requestId, failureMode, errorType
 | sort count desc
             """.strip(),
             log_groups=[
-                functions_stack.ingest_function.log_group,
-                functions_stack.worker_function.log_group,
+                self.functions_stack.ingest_function.log_group,
+                self.functions_stack.worker_function.log_group,
             ],
         )
 
@@ -176,7 +172,7 @@ fields @timestamp, @message, requestId, count, processed, redriven
 | sort @timestamp desc
 | limit 100
             """.strip(),
-            log_groups=[functions_stack.redrive_function.log_group],
+            log_groups=[self.functions_stack.redrive_function.log_group],
         )
 
         # Store query references
