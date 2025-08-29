@@ -1,0 +1,52 @@
+[tool.poetry]
+name = "aws-lambda-sqs-dlq"
+version = "0.1.0"
+description = "Production-ready serverless ingestion pipeline with AWS CDK"
+authors = ["Your Name <your.email@domain.com>"]
+license = "MIT"
+readme = "README.md"
+repository = "https://github.com/Simodalstix/AWS-lambda-sqs-dlq"
+keywords = ["aws", "cdk", "serverless", "sqs", "lambda", "dlq"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+aws-cdk-lib = "2.150.0"
+constructs = "^10.3.0"
+boto3 = "^1.34.0"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.0.0"
+pytest-cov = "^4.0.0"
+moto = "^5.0.0"
+black = "^24.0.0"
+flake8 = "^7.0.0"
+mypy = "^1.8.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.black]
+line-length = 88
+target-version = ['py311']
+
+[tool.pytest.ini_options]
+testpaths = ["infra/tests"]
+python_files = "test_*.py"
+python_classes = "Test*"
+python_functions = "test_*"
+addopts = "-v --tb=short"
+
+[tool.mypy]
+python_version = "3.11"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true

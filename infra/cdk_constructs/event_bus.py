@@ -48,14 +48,12 @@ class IngestionEventBus(Construct):
 
         # Add email subscription if provided
         if alarm_email and alarm_email != "devops@example.com":
-            self.notification_topic.add_subscription(
-                sns.Subscription(
-                    self,
-                    "EmailSubscription",
-                    topic=self.notification_topic,
-                    endpoint=alarm_email,
-                    protocol=sns.SubscriptionProtocol.EMAIL,
-                )
+            sns.Subscription(
+                self,
+                "EmailSubscription",
+                topic=self.notification_topic,
+                endpoint=alarm_email,
+                protocol=sns.SubscriptionProtocol.EMAIL,
             )
 
         # Create rule for ingestion success events

@@ -55,7 +55,7 @@
     "queueVisibilitySeconds": 180,
     "useKmsCmk": false,
     "kmsAlias": "alias/ingestion-lab",
-    "alarmEmail": "devops@example.com",
+    "alarmEmail": "your-email@domain.com",
     "webhookUrl": "",
     "authMode": "none",
     "ttlDays": 7,
