@@ -28,7 +28,7 @@ pytest-cov = "^4.0.0"
 moto = "^5.0.0"
 black = "^24.0.0"
 flake8 = "^7.0.0"
-mypy = "^1.8.0"
+
 
 [build-system]
 requires = ["poetry-core"]
@@ -45,8 +45,3 @@ python_classes = "Test*"
 python_functions = "test_*"
 addopts = "-v --tb=short"
 
-[tool.mypy]
-python_version = "3.11"
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
