@@ -8,7 +8,7 @@
 
 A production-ready serverless ingestion pipeline built with AWS CDK, demonstrating enterprise patterns for reliability, observability, and operational excellence.
 
-## 🏗️ What This Builds
+## What This Builds
 
 **Core Infrastructure:**
 
